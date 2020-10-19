@@ -1037,7 +1037,7 @@ func getCode(_ url: String) -> [String: [String: [String: Any]]]? {
                         // NOTE: getFileContents returns parsed script metadata
                         let saveLocation = getSaveLocation(),
                         let contents = getFileContents(saveLocation.appendingPathComponent(filename)) as? [String: Any],
-                        let code = contents["code"] as? String,
+                        var code = contents["code"] as? String,
                         let type = filename.split(separator: ".").last
                     else {
                         err("error reading getting file data in getCode func")
@@ -1046,6 +1046,38 @@ func getCode(_ url: String) -> [String: [String: [String: Any]]]? {
                     
                     // can force unwrap b/c getFileContents ensures metadata exists
                     let metadata = contents["metadata"] as! [String: [String]]
+                    
+                    // check if metadata includes @export true, if so, ignore
+                    if metadata["export"]?.first == "true" {
+                        NSLog("Skipping \(filename) because it has @export key")
+                        continue
+                    }
+                    
+                    // @import(s) present, try to get dependency code
+                    if var imports = metadata["import"] {
+                        // reverse imports array so load order is descending
+                        imports.reverse()
+                        for var depFilename in imports {
+                            // only allow importing of same file types
+                            depFilename = "\(depFilename).\(type)"
+                            // ensure not self importing
+                            if depFilename != filename {
+                                let depLoc = saveLocation.appendingPathComponent(depFilename)
+                                guard
+                                    let depContents = getFileContents(depLoc) as? [String: Any],
+                                    let depMetadata = depContents["metadata"] as? [String: [String]],
+                                    let depCode = depContents["code"] as? String
+                                else {
+                                    continue
+                                }
+                                // ensure @export true still exists in dependency, separated for better messaging
+                                if depMetadata["export"]?.first == "true" {
+                                    // prepend script code with dependency code
+                                    code = depCode + code
+                                }
+                            }
+                        }
+                    }
                     
                     // normalize weight
                     var weight = metadata["weight"]?[0] ?? "1"
