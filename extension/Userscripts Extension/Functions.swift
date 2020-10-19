@@ -895,6 +895,15 @@ func saveScriptFile(_ scriptData: [String: String]) -> [String: String]? {
         err("failed to update manifest record for new filename when attempting to save script file")
     }
     
+    // check if is an export script, if so, remove from manifest
+    // it might be better to check before saving to manifest above
+    // however, if script is edited to be an export script, it'll need to be removed on save
+    if metadata["export"]?.first == "true" {
+        if !updateExcludesAndMatches(newFilename, [], []) {
+            err("failed to remove manifest records on save for an export script")
+        }
+    }
+    
     // return un-santized name
     if name.hasPrefix("%2") && !name.hasPrefix("%2F") {
         name = "." + name.dropFirst(2)
