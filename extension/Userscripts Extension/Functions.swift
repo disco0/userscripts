@@ -1066,11 +1066,9 @@ func getCode(_ url: String) -> [String: [String: [String: Any]]]? {
                     if var imports = metadata["import"] {
                         // reverse imports array so load order is descending
                         imports.reverse()
-                        for var depFilename in imports {
-                            // only allow importing of same file types
-                            depFilename = "\(depFilename).\(type)"
-                            // ensure not self importing
-                            if depFilename != filename {
+                        for depFilename in imports {
+                            // ensure not self importing and importing of same file type
+                            if depFilename != filename && depFilename.hasSuffix(".\(type)") {
                                 let depLoc = saveLocation.appendingPathComponent(depFilename)
                                 guard
                                     let depContents = getFileContents(depLoc) as? [String: Any],
